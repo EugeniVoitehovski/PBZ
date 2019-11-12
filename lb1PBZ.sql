@@ -40,12 +40,19 @@ SELECT DISTINCT private_number FROM teacher_student_group
 INNER JOIN student_group on teacher_student_group.group_number = student_group.group_number 
 WHERE speciality = "ЭВМ"; -- 12
 
-SELECT DISTINCT subject_number FROM teacher_student_group; -- 13
+SELECT DISTINCT subject_number FROM teacher_student_group; -- 13.0
 
-SELECT distinct last_name FROM teacher_student_group 
-inner join teacher on teacher_student_group.private_number = teacher.private_number
-where (teacher_student_group.subject_number = "14П" or teacher_student_group.subject_number = "17П")
-and teacher_student_group.private_number != "221Л"; -- 14
+select subject_number from teacher_student_group as all_data 
+where (select count(distinct main.group_number) from teacher_student_group as main 
+inner join teacher_student_group as main_copy on main.subject_number = main_copy.subject_number 
+where main.subject_number = all_data.subject_number)  
+= (select count(distinct group_number) from teacher_student_group); -- 13.1
+
+
+select distinct last_name from (select private_number from teacher_student_group where subject_number = 
+any (select subject_number from teacher_student_group where private_number = 
+any (select distinct private_number from teacher_student_group 
+where subject_number='14П'))) as tsg inner join teacher on tsg.private_number=teacher.private_number; -- 14.1
 
 SELECT DISTINCT subject.* FROM subject
 INNER JOIN teacher_student_group on subject.subject_number = teacher_student_group.subject_number
@@ -60,9 +67,13 @@ where teacher_student_group.subject_number not in (select subject_number from te
 inner join student_group on teacher_student_group.group_number = student_group.group_number
 WHERE student_group.group_name = "М-6"); -- 16
 
-SELECT teacher.* from teacher
-where position = "Доцент" and teacher.private_number in (select private_number from teacher_student_group where group_number = "3Г")
-and teacher.private_number in (select private_number from teacher_student_group where group_number = "8Г"); -- 17
+select teacher.* from teacher
+where position = "Доцент" and teacher.private_number in 
+(select private_number from teacher_student_group where group_number = "3Г" or group_number = "8Г"); -- 17.1
+
+SELECT teacher.* from teacher where position = "Доцент" and teacher.private_number in 
+(select private_number from teacher_student_group where group_number = "3Г")
+and teacher.private_number in (select private_number from teacher_student_group where group_number = "8Г"); -- 17.0 
   
 SELECT teacher_student_group.subject_number, teacher_student_group.group_number, teacher_student_group.private_number FROM teacher_student_group
 inner join teacher on teacher_student_group.private_number = teacher.private_number  
@@ -109,16 +120,18 @@ WHERE teacher_student_group.subject_number != "12П"
 AND teacher_student_group.group_number = (SELECT student_group.group_number FROM student_group
 WHERE student_group.group_name = "Э-15"); -- 26
 
-Select ПР,part.color,producer.town from producer_project_part_number
-inner join part on producer_project_part_number.Д = part.Д
-inner join producer on producer_project_part_number.П = producer.П
-where part.color !="Красный" and producer.town!="Москва"; -- 2.28 yes
+SELECT DISTINCT producer_project_part_number.ПР FROM producer_project_part_number
+WHERE producer_project_part_number.ПР NOT IN( SELECT producer_project_part_number.ПР FROM producer_project_part_number
+INNER JOIN( SELECT producer.П FROM producer WHERE producer.town = "Москва") AS main
+ON producer_project_part_number.П = main.П INNER JOIN part ON part.Д = producer_project_part_number.Д
+WHERE part.Color = "Красный"); -- 2.28.1
 
 SELECT count(ПР) FROM producer_project_part_number WHERE П  = "П1"; -- 2.15 yes
 
-select distinct П from part 
-inner join producer_project_part_number on part.Д = producer_project_part_number.Д
-where part.color like "Красный"; -- 23 yes
+SELECT DISTINCT producer_project_part_number.П FROM producer_project_part_number WHERE producer_project_part_number.Д IN( SELECT producer_project_part_number.Д FROM producer_project_part_number
+WHERE producer_project_part_number.П IN (
+SELECT DISTINCT producer_project_part_number.П FROM producer_project_part_number INNER JOIN part ON part.Д = producer_project_part_number.Д
+WHERE part.Color = "Красный" ));  -- 2.23.1
 
 select  Д from producer_project_part_number
 inner join project on producer_project_part_number.ПР = project.ПР
@@ -136,12 +149,17 @@ inner join project on producer_project_part_number.ПР = project.ПР
 inner join producer on producer_project_part_number.П = producer.П
 where producer.town="Таллин" or project.town="Таллин";-- 2.34 yes
 
-select  distinct a.Д ,b.Д from producer_project_part_number a
-inner join producer_project_part_number b on a.Д=b.Д
-where a.П = b.П; -- 2.14 yes
+SELECT DISTINCT pppn1.Д, pppn2.Д FROM producer_project_part_number AS pppn1 
+INNER JOIN producer_project_part_number AS pppn2
+ON not pppn2.П = pppn1.П
+WHERE  pppn1.Д > pppn2.Д;  -- 2.14.1
 
-select ПР from producer_project_part_number
-where producer_project_part_number.П = "П1"; -- 2.29 yes
+SELECT main.ПР FROM producer_project_part_number as main 
+WHERE "П1" = all (SELECT DISTINCT П FROM producer_project_part_number WHERE ПР = main.ПР); -- 2.29.1
+ 
+
+
+
 
 
 
